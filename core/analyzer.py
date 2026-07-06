@@ -2,17 +2,7 @@
 PaletteForge
 core/analyzer.py
 
-v0.2.5 - Material-Aware Sprite Role Detection
-
-This version combines palette information with spatial region information:
-- edge ratio
-- interior ratio
-- coverage
-- neighboring colors
-- body-family dominance
-
-This helps avoid bad mappings where body, belly, wing, outline, and accent
-colors are treated as interchangeable.
+v0.2.9 - Pokémon Smart Match Alpha Analyzer
 """
 
 import colorsys
@@ -41,11 +31,9 @@ class SpriteAnalyzer:
 
         return analyzed
 
-
     def _assign_material_roles(self, colors):
         for color in colors:
             color["material"] = self.material_analyzer.classify(color)
-
         return colors
 
     def _analyze_entry(self, entry, rank):
@@ -91,7 +79,7 @@ class SpriteAnalyzer:
         }
 
     def _assign_body_roles(self, colors):
-        family_counts = defaultdict(int)
+        family_counts = defaultdict(float)
 
         for color in colors:
             if color["role"] in ("outline", "neutral", "highlight"):
@@ -100,17 +88,11 @@ class SpriteAnalyzer:
             if color["saturation"] < 0.18:
                 continue
 
-            # Give interior-heavy colors more body importance.
-            body_weight = 1.0 + color["interior_ratio"]
+            body_weight = 1.0 + color["interior_ratio"] + min(color["coverage"] * 6, 1.2)
             family_counts[color["family"]] += color["count"] * body_weight
 
         ranked_families = [
-            family
-            for family, _count in sorted(
-                family_counts.items(),
-                key=lambda item: item[1],
-                reverse=True
-            )
+            family for family, _count in sorted(family_counts.items(), key=lambda item: item[1], reverse=True)
         ]
 
         primary_family = ranked_families[0] if len(ranked_families) >= 1 else None
@@ -143,39 +125,30 @@ class SpriteAnalyzer:
         return colors
 
     def _assign_region_roles(self, colors):
-        """
-        Spatial correction pass.
-
-        This is where v0.2.4 improves over v0.2.3:
-        - edge-heavy dark colors become outline
-        - large interior saturated colors become body
-        - low-saturation interior colors become neutral/belly-like
-        - small saturated colors become accent
-        """
         for color in colors:
-            if color["brightness"] < 55 and color["edge_ratio"] > 0.18:
+            if color["brightness"] < 55 and color["edge_ratio"] > 0.16:
                 color["semantic_role"] = "outline"
                 continue
 
-            if color["coverage"] > 0.03 and color["interior_ratio"] > 0.65 and color["saturation"] > 0.22:
+            if color["coverage"] > 0.025 and color["interior_ratio"] > 0.50 and color["saturation"] > 0.22:
                 if "primary_body" not in color["semantic_role"] and "secondary_body" not in color["semantic_role"]:
                     color["semantic_role"] = "primary_body"
 
-            if color["coverage"] > 0.015 and color["interior_ratio"] > 0.55 and color["saturation"] < 0.25:
-                if color["brightness"] > 125:
+            if color["coverage"] > 0.012 and color["interior_ratio"] > 0.42 and color["saturation"] < 0.26:
+                if color["brightness"] > 120:
                     color["semantic_role"] = "neutral"
 
-            if color["coverage"] < 0.012 and color["saturation"] > 0.28 and color["brightness"] > 80:
+            if color["coverage"] < 0.010 and color["saturation"] > 0.28 and color["brightness"] > 80:
                 if color["semantic_role"] not in ("outline", "highlight"):
                     color["semantic_role"] = "accent"
 
         return colors
 
     def _classify_base_role(self, brightness, saturation, value, coverage, family, edge_ratio, interior_ratio):
-        if brightness < 42 and edge_ratio > 0.12:
+        if brightness < 44 and edge_ratio > 0.10:
             return "outline"
 
-        if brightness < 70 and edge_ratio > 0.08:
+        if brightness < 72 and edge_ratio > 0.06:
             return "shadow"
 
         if saturation < 0.12 and brightness > 185:
@@ -184,7 +157,7 @@ class SpriteAnalyzer:
         if saturation < 0.16:
             return "neutral"
 
-        if coverage > 0.06 and saturation > 0.20 and interior_ratio > 0.45:
+        if coverage > 0.05 and saturation > 0.20 and interior_ratio > 0.38:
             return "body_candidate"
 
         if brightness > 188:
@@ -247,11 +220,6 @@ class SpriteAnalyzer:
                 count = 1
 
             if isinstance(rgb, tuple) and len(rgb) >= 3:
-                normalized.append(
-                    {
-                        "rgb": (int(rgb[0]), int(rgb[1]), int(rgb[2])),
-                        "count": int(count),
-                    }
-                )
+                normalized.append({"rgb": (int(rgb[0]), int(rgb[1]), int(rgb[2])), "count": int(count)})
 
         return normalized

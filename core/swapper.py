@@ -2,15 +2,15 @@
 PaletteForge
 core/swapper.py
 
-v0.2.5 - Material-Aware Matching
+v0.2.9 - Pokémon Smart Match Alpha
 
-This matcher adds a material layer on top of sprite role and region detection.
-
-The big idea:
-- body should map to body
-- belly/light should map to belly/light
-- outline should map to outline
-- accent/energy should map to accent/energy
+Bundled features:
+- region graph foundation
+- material graph foundation
+- role-aware matching
+- material-aware matching
+- outline protection
+- body-to-body preference
 """
 
 import math
@@ -99,10 +99,7 @@ class PaletteMatcher:
         return self.mapping
 
     def get_mapping_dict(self):
-        return {
-            entry["source_rgb"]: entry["target_rgb"]
-            for entry in self.mapping
-        }
+        return {entry["source_rgb"]: entry["target_rgb"] for entry in self.mapping}
 
     def _group_by_material(self, colors):
         groups = {}
@@ -173,11 +170,11 @@ class PaletteMatcher:
             score += 24
 
         if source.get("material") == target.get("material"):
-            score -= 130
+            score -= 135
         elif self._materials_compatible(source.get("material"), target.get("material")):
-            score -= 58
+            score -= 60
         else:
-            score += 46
+            score += 48
 
         if source["semantic_role"] == target["semantic_role"]:
             score -= 70
@@ -188,7 +185,6 @@ class PaletteMatcher:
 
         score += abs(source.get("edge_ratio", 0) - target.get("edge_ratio", 0)) * 42
         score += abs(source.get("interior_ratio", 0) - target.get("interior_ratio", 0)) * 24
-
         score += abs(source["brightness"] - target["brightness"]) * 0.34
         score += abs(source["saturation"] - target["saturation"]) * 18
         score += abs(source["rank"] - target["rank"]) * 0.45

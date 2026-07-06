@@ -12,7 +12,7 @@ class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.2.6")
+        self.title("PaletteForge v0.2.9")
         self.geometry("1200x720")
         self.minsize(1000, 650)
 
@@ -75,7 +75,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.version_label = ctk.CTkLabel(
             self.sidebar,
-            text="Version 0.2.6\nSegmentation",
+            text="Version 0.2.9\nSmart Match Alpha",
             font=("Arial", 12),
             text_color="#B5BAC1"
         )
@@ -546,7 +546,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.display_mapping(mapping)
         self.mapping_count_label.configure(text=f"{len(mapping)} matches")
-        self.set_status(f"Material matched {len(mapping)} colors")
+        self.set_status(f"Pokémon smart matched {len(mapping)} colors")
         self.update_file_info()
 
     def display_mapping(self, mapping):
@@ -685,13 +685,24 @@ class PaletteForgeWindow(ctk.CTk):
 
         total_regions = report.get("total_regions", 0)
         largest_regions = report.get("largest_regions", [])
+        material_summary = report.get("material_summary", {})
+        graph_summary = report.get("graph_summary", {})
 
         lines = [
-            "Sprite Segmentation:",
+            "Pokémon Smart Match Analysis:",
             f"Regions detected: {total_regions}",
+            f"Graph links: {graph_summary.get('edge_count', 0)}",
             "",
-            "Largest regions:"
+            "Materials:"
         ]
+
+        if material_summary:
+            for material, count in material_summary.items():
+                lines.append(f"{material}: {count}")
+        else:
+            lines.append("No material summary available.")
+
+        lines.extend(["", "Largest regions:"])
 
         if not largest_regions:
             lines.append("No regions detected.")

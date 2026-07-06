@@ -2,18 +2,7 @@
 PaletteForge
 core/region_analyzer.py
 
-v0.2.4 - Region Detection
-
-This module analyzes how colors behave spatially inside a sprite.
-
-Instead of only asking "what color is this?", this asks:
-- Is this color mostly on the outer edge?
-- Is it mostly internal?
-- What colors does it touch?
-- Is it concentrated near the center, top, bottom, left, or right?
-- Does it behave like an outline, body fill, belly, wing, accent, or highlight?
-
-This is the foundation for true sprite-part-aware matching.
+v0.2.9 - Region Graph Metadata
 """
 
 from collections import defaultdict
@@ -73,14 +62,7 @@ class SpriteRegionAnalyzer:
         if x == 0 or y == 0 or x == width - 1 or y == height - 1:
             return True
 
-        neighbors = [
-            (x - 1, y),
-            (x + 1, y),
-            (x, y - 1),
-            (x, y + 1),
-        ]
-
-        for nx, ny in neighbors:
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
             _r, _g, _b, a = pixels[nx, ny]
             if a == 0:
                 return True
@@ -90,12 +72,7 @@ class SpriteRegionAnalyzer:
     def _neighbor_colors(self, pixels, x, y, width, height):
         neighbors = []
 
-        for nx, ny in (
-            (x - 1, y),
-            (x + 1, y),
-            (x, y - 1),
-            (x, y + 1),
-        ):
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
             if nx < 0 or ny < 0 or nx >= width or ny >= height:
                 continue
 
@@ -109,7 +86,6 @@ class SpriteRegionAnalyzer:
 
     def _finalize(self, color_stats):
         finalized = {}
-
         total_pixels = sum(stats["count"] for stats in color_stats.values()) or 1
 
         for rgb, stats in color_stats.items():
@@ -117,10 +93,8 @@ class SpriteRegionAnalyzer:
             edge_ratio = stats["edge_count"] / count if count else 0
             interior_ratio = stats["interior_count"] / count if count else 0
             coverage = count / total_pixels
-
             avg_x = stats["x_sum"] / count if count else 0
             avg_y = stats["y_sum"] / count if count else 0
-
             bbox_width = max(stats["max_x"] - stats["min_x"] + 1, 1)
             bbox_height = max(stats["max_y"] - stats["min_y"] + 1, 1)
 
@@ -133,12 +107,7 @@ class SpriteRegionAnalyzer:
                 "interior_ratio": interior_ratio,
                 "avg_x": avg_x,
                 "avg_y": avg_y,
-                "bbox": (
-                    stats["min_x"],
-                    stats["min_y"],
-                    stats["max_x"],
-                    stats["max_y"],
-                ),
+                "bbox": (stats["min_x"], stats["min_y"], stats["max_x"], stats["max_y"]),
                 "bbox_width": bbox_width,
                 "bbox_height": bbox_height,
                 "touches": dict(stats["touches"]),

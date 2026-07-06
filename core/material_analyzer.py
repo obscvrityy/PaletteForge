@@ -2,25 +2,11 @@
 PaletteForge
 core/material_analyzer.py
 
-v0.2.5 - Material-Aware Matching
-
-This module classifies what a palette color probably represents as a material.
-
-The purpose is to avoid bad matches like:
-- body color -> scarf/accent
-- belly color -> body shadow
-- outline color -> body fill
-- flame/accent color -> neutral belly
-
-This is still heuristic-based, but gives the matcher stronger guidance.
+v0.2.9 - Material Graph Alpha
 """
 
 
 class MaterialAnalyzer:
-    """
-    Assigns high-level material classes to analyzed sprite colors.
-    """
-
     def classify(self, color):
         semantic_role = color.get("semantic_role", "")
         family = color.get("family", "")
@@ -30,7 +16,7 @@ class MaterialAnalyzer:
         edge_ratio = color.get("edge_ratio", 0)
         interior_ratio = color.get("interior_ratio", 0)
 
-        if semantic_role == "outline" or (brightness < 50 and edge_ratio > 0.14):
+        if semantic_role == "outline" or (brightness < 55 and edge_ratio > 0.12):
             return "line_art"
 
         if semantic_role in ("primary_body", "primary_body_shadow", "primary_body_highlight"):
@@ -39,10 +25,10 @@ class MaterialAnalyzer:
         if semantic_role in ("secondary_body", "secondary_body_shadow", "secondary_body_highlight"):
             return "secondary_body"
 
-        if semantic_role in ("neutral", "highlight") and interior_ratio > 0.45 and brightness > 120:
+        if saturation < 0.22 and brightness > 125 and interior_ratio > 0.35:
             return "belly_light"
 
-        if saturation < 0.16 and brightness > 170:
+        if saturation < 0.16 and brightness > 172:
             return "highlight_light"
 
         if coverage < 0.018 and saturation > 0.30:
@@ -50,13 +36,10 @@ class MaterialAnalyzer:
                 return "energy_accent"
             return "small_accent"
 
-        if family in ("red", "orange", "yellow") and saturation > 0.35 and coverage < 0.04:
-            return "energy_accent"
-
         if semantic_role == "accent":
             return "accent"
 
-        if saturation > 0.25 and coverage > 0.025:
+        if saturation > 0.25 and coverage > 0.022:
             return "colored_surface"
 
         return "misc"
