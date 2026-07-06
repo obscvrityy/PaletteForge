@@ -9,7 +9,7 @@ Created by Obscurity
 import customtkinter as ctk
 
 # Import our main application window
-from ui.windows import PaletteForgeWindow
+from ui.window import PaletteForgeWindow
 
 
 def main():
