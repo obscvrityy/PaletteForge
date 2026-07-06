@@ -11,7 +11,7 @@ class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.1.6")
+        self.title("PaletteForge v0.2.0")
         self.geometry("1200x720")
         self.minsize(1000, 650)
 
@@ -74,7 +74,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.version_label = ctk.CTkLabel(
             self.sidebar,
-            text="Version 0.1.6\nManual Mapping",
+            text="Version 0.2.0\nGIF Export",
             font=("Arial", 12),
             text_color="#B5BAC1"
         )
@@ -140,6 +140,17 @@ class PaletteForgeWindow(ctk.CTk):
             hover_color="#4752C4"
         )
         self.apply_mapping_button.pack(padx=20, pady=8, fill="x")
+
+        self.export_gif_button = ctk.CTkButton(
+            self.sidebar,
+            text="📦 Export GIF",
+            command=self.export_swapped_gif,
+            height=40,
+            fg_color="#57F287",
+            hover_color="#3BA55D",
+            text_color="#111214"
+        )
+        self.export_gif_button.pack(padx=20, pady=8, fill="x")
 
         self.status_label = ctk.CTkLabel(
             self.sidebar,
@@ -650,6 +661,58 @@ class PaletteForgeWindow(ctk.CTk):
             return
 
         self.render_live_swap_preview()
+
+    def export_swapped_gif(self):
+        if self.source_image is None:
+            self.set_status("Load a source GIF first")
+            return
+
+        if not self.palette_mapping:
+            self.auto_match_palettes()
+
+        if not self.palette_mapping:
+            self.set_status("Create a mapping first")
+            return
+
+        save_path = filedialog.asksaveasfilename(
+            title="Export Swapped GIF",
+            defaultextension=".gif",
+            filetypes=[
+                ("GIF files", "*.gif"),
+                ("All files", "*.*")
+            ]
+        )
+
+        if not save_path:
+            self.set_status("Export cancelled")
+            return
+
+        renderer = PaletteRenderer(self.palette_mapping)
+        rendered_frames, durations = renderer.render_gif_frames(self.source_image)
+
+        if not rendered_frames:
+            self.set_status("Export failed: no frames rendered")
+            return
+
+        export_frames = []
+
+        for frame in rendered_frames:
+            export_frames.append(frame.convert("RGBA"))
+
+        first_frame = export_frames[0]
+        remaining_frames = export_frames[1:]
+
+        first_frame.save(
+            save_path,
+            save_all=True,
+            append_images=remaining_frames,
+            duration=durations,
+            loop=0,
+            disposal=2,
+            transparency=0
+        )
+
+        self.set_status("GIF exported successfully")
 
     def hex_to_rgb(self, hex_color):
         clean_hex = hex_color.replace("#", "")
