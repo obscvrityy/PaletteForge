@@ -2,11 +2,9 @@
 PaletteForge
 core/swapper.py
 
-v0.1.4 - Auto Match Engine
+v0.1.4.1 - Auto Match Fix
 
-This module contains the first real palette matching engine for PaletteForge.
-It is intentionally separated from the UI so future features like live preview,
-manual mapping, GIF export, presets, and batch processing can build on it cleanly.
+Palette matching engine for PaletteForge.
 """
 
 import math
@@ -16,11 +14,12 @@ class PaletteMatcher:
     """
     Matches source palette colors to target palette colors.
 
-    Current v0.1.4 strategy:
-    - Sort source colors by brightness.
-    - Sort target colors by brightness.
+    Strategy:
+    - Normalize Palette Explorer data into RGB tuples.
+    - Sort source colors by perceived brightness.
+    - Sort target colors by perceived brightness.
     - Pair colors by brightness order.
-    - If there are more source colors than target colors, use nearest-color fallback.
+    - If source has more colors than target, use closest RGB fallback.
     """
 
     def __init__(self, source_palette, target_palette):
@@ -29,12 +28,6 @@ class PaletteMatcher:
         self.mapping = []
 
     def auto_match(self):
-        """
-        Creates a source-to-target palette mapping.
-
-        Returns:
-            list[dict]: Mapping entries with source RGB, target RGB, hex values, and brightness.
-        """
         self.mapping = []
 
         if not self.source_palette or not self.target_palette:
@@ -63,27 +56,15 @@ class PaletteMatcher:
         return self.mapping
 
     def get_mapping(self):
-        """
-        Returns the most recent mapping.
-        """
         return self.mapping
 
     def get_mapping_dict(self):
-        """
-        Returns a simple dictionary version of the current mapping.
-
-        Example:
-            {(255, 0, 0): (0, 0, 255)}
-        """
         return {
             entry["source_rgb"]: entry["target_rgb"]
             for entry in self.mapping
         }
 
     def find_closest_color(self, source_color, target_colors):
-        """
-        Finds the closest target color by RGB distance.
-        """
         return min(
             target_colors,
             key=lambda target_color: self.color_distance(source_color, target_color)
@@ -91,17 +72,11 @@ class PaletteMatcher:
 
     @staticmethod
     def color_brightness(color):
-        """
-        Calculates perceived brightness using the standard luma formula.
-        """
         r, g, b = color
         return (0.299 * r) + (0.587 * g) + (0.114 * b)
 
     @staticmethod
     def color_distance(color_a, color_b):
-        """
-        Calculates straight RGB distance between two colors.
-        """
         return math.sqrt(
             (color_a[0] - color_b[0]) ** 2
             + (color_a[1] - color_b[1]) ** 2
@@ -110,25 +85,15 @@ class PaletteMatcher:
 
     @staticmethod
     def rgb_to_hex(color):
-        """
-        Converts an RGB tuple into a HEX string.
-        """
         return "#{:02X}{:02X}{:02X}".format(*color)
 
     @staticmethod
     def _normalize_palette(palette):
-        """
-        Accepts palette formats from the current app and converts them into RGB tuples.
-
-        Current Palette Explorer stores colors as:
-            [((r, g, b), pixel_count), ...]
-
-        This method also accepts:
-            [(r, g, b), ...]
-        """
         normalized = []
 
         for item in palette:
+            # Current Palette Explorer format:
+            # [((r, g, b), pixel_count), ...]
             if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], tuple):
                 rgb = item[0]
             else:

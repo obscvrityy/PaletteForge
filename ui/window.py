@@ -10,7 +10,7 @@ class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.1.4")
+        self.title("PaletteForge v0.1.4.1")
         self.geometry("1200x720")
         self.minsize(1000, 650)
 
@@ -65,7 +65,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.version_label = ctk.CTkLabel(
             self.sidebar,
-            text="Version 0.1.4\nAuto Match Engine",
+            text="Version 0.1.4.1\nAuto Match Fix",
             font=("Arial", 12),
             text_color="#B5BAC1"
         )
@@ -102,6 +102,16 @@ class PaletteForgeWindow(ctk.CTk):
         )
         self.auto_match_button.pack(padx=20, pady=8, fill="x")
 
+        self.status_label = ctk.CTkLabel(
+            self.sidebar,
+            text="Status:\nReady",
+            font=("Arial", 12),
+            text_color="#B5BAC1",
+            wraplength=180,
+            justify="left"
+        )
+        self.status_label.pack(padx=20, pady=(18, 8), anchor="w")
+
         self.clear_button = ctk.CTkButton(
             self.sidebar,
             text="Clear All",
@@ -111,16 +121,6 @@ class PaletteForgeWindow(ctk.CTk):
             hover_color="#383A40"
         )
         self.clear_button.pack(padx=20, pady=8, fill="x")
-
-        self.status_label = ctk.CTkLabel(
-            self.sidebar,
-            text="Status:\nReady",
-            font=("Arial", 12),
-            text_color="#B5BAC1",
-            wraplength=180,
-            justify="left"
-        )
-        self.status_label.pack(padx=20, pady=(25, 0), anchor="w")
 
         # Center preview area
         self.preview_frame = ctk.CTkFrame(self, fg_color="#15161A", corner_radius=0)
@@ -213,7 +213,7 @@ class PaletteForgeWindow(ctk.CTk):
         self.source_palette_scroll = ctk.CTkScrollableFrame(
             self.inspector,
             width=270,
-            height=130,
+            height=125,
             fg_color="#2B2D31",
             corner_radius=8
         )
@@ -238,7 +238,7 @@ class PaletteForgeWindow(ctk.CTk):
         self.target_palette_scroll = ctk.CTkScrollableFrame(
             self.inspector,
             width=270,
-            height=130,
+            height=125,
             fg_color="#2B2D31",
             corner_radius=8
         )
@@ -263,7 +263,7 @@ class PaletteForgeWindow(ctk.CTk):
         self.mapping_scroll = ctk.CTkScrollableFrame(
             self.inspector,
             width=270,
-            height=145,
+            height=140,
             fg_color="#2B2D31",
             corner_radius=8
         )
@@ -291,14 +291,12 @@ class PaletteForgeWindow(ctk.CTk):
             self.load_preview(image, "source")
             self.source_palette_colors = self.extract_palette(image)
             self.display_palette(self.source_palette_colors, "source")
-            self.set_status("Source loaded")
         else:
             self.clear_slot("target")
             self.target_image = image
             self.load_preview(image, "target")
             self.target_palette_colors = self.extract_palette(image)
             self.display_palette(self.target_palette_colors, "target")
-            self.set_status("Target loaded")
 
         self.clear_mapping_display()
         self.update_file_info()
@@ -465,9 +463,10 @@ class PaletteForgeWindow(ctk.CTk):
 
             widgets.append(row)
 
+
     def auto_match_palettes(self):
         if not self.source_palette_colors or not self.target_palette_colors:
-            self.set_status("Load both palettes first")
+            self.set_status("Load both GIFs first")
             self.file_info_label.configure(
                 text="Auto Match needs both a source palette and a target palette."
             )
@@ -478,15 +477,16 @@ class PaletteForgeWindow(ctk.CTk):
             self.target_palette_colors
         )
 
-        self.palette_mapping = matcher.auto_match()
-        self.display_mapping(self.palette_mapping)
+        mapping = matcher.auto_match()
+        self.palette_mapping = mapping[:]
 
-        self.mapping_count_label.configure(text=f"{len(self.palette_mapping)} matches")
-        self.set_status(f"Auto matched {len(self.palette_mapping)} colors")
+        self.display_mapping(mapping)
+        self.mapping_count_label.configure(text=f"{len(mapping)} matches")
+        self.set_status(f"Auto matched {len(mapping)} colors")
         self.update_file_info()
 
     def display_mapping(self, mapping):
-        self.clear_mapping_display()
+        self.clear_mapping_display(clear_data=False)
 
         if not mapping:
             empty_label = ctk.CTkLabel(
@@ -496,6 +496,7 @@ class PaletteForgeWindow(ctk.CTk):
             )
             empty_label.pack(pady=10)
             self.mapping_widgets.append(empty_label)
+            self.mapping_count_label.configure(text="0 matches")
             return
 
         for index, entry in enumerate(mapping, start=1):
@@ -557,13 +558,17 @@ class PaletteForgeWindow(ctk.CTk):
 
             self.mapping_widgets.append(row)
 
-    def clear_mapping_display(self):
+        self.mapping_count_label.configure(text=f"{len(mapping)} matches")
+
+    def clear_mapping_display(self, clear_data=True):
         for widget in self.mapping_widgets:
             widget.destroy()
 
         self.mapping_widgets = []
-        self.palette_mapping = []
-        self.mapping_count_label.configure(text="0 matches")
+
+        if clear_data:
+            self.palette_mapping = []
+            self.mapping_count_label.configure(text="0 matches")
 
     def clear_palette_display(self, slot):
         if slot == "source":
