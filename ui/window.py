@@ -4,13 +4,14 @@ from tkinter import filedialog
 from PIL import Image, ImageTk
 
 from core.swapper import PaletteMatcher
+from core.renderer import PaletteRenderer
 
 
 class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.1.4.1")
+        self.title("PaletteForge v0.1.5")
         self.geometry("1200x720")
         self.minsize(1000, 650)
 
@@ -40,6 +41,13 @@ class PaletteForgeWindow(ctk.CTk):
         self.palette_mapping = []
         self.mapping_widgets = []
 
+        self.original_source_title_text = "SOURCE"
+        self.swapped_preview_frames = []
+        self.swapped_preview_durations = []
+        self.swapped_preview_index = 0
+        self.swapped_preview_job = None
+        self.is_showing_swapped_preview = False
+
         self.configure(fg_color="#111214")
 
         self.create_layout()
@@ -65,7 +73,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.version_label = ctk.CTkLabel(
             self.sidebar,
-            text="Version 0.1.4.1\nAuto Match Fix",
+            text="Version 0.1.5\nLive Swap Preview",
             font=("Arial", 12),
             text_color="#B5BAC1"
         )
@@ -101,6 +109,26 @@ class PaletteForgeWindow(ctk.CTk):
             text_color="#111214"
         )
         self.auto_match_button.pack(padx=20, pady=8, fill="x")
+
+        self.live_preview_button = ctk.CTkButton(
+            self.sidebar,
+            text="🔥 Live Swap Preview",
+            command=self.render_live_swap_preview,
+            height=40,
+            fg_color="#EB459E",
+            hover_color="#C63D86"
+        )
+        self.live_preview_button.pack(padx=20, pady=8, fill="x")
+
+        self.show_original_button = ctk.CTkButton(
+            self.sidebar,
+            text="Show Original Source",
+            command=self.restore_source_preview,
+            height=40,
+            fg_color="#2B2D31",
+            hover_color="#383A40"
+        )
+        self.show_original_button.pack(padx=20, pady=8, fill="x")
 
         self.status_label = ctk.CTkLabel(
             self.sidebar,
@@ -287,6 +315,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         if slot == "source":
             self.clear_slot("source")
+            self.source_title.configure(text=self.original_source_title_text)
             self.source_image = image
             self.load_preview(image, "source")
             self.source_palette_colors = self.extract_palette(image)
@@ -560,11 +589,90 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.mapping_count_label.configure(text=f"{len(mapping)} matches")
 
+
+    def render_live_swap_preview(self):
+        if self.source_image is None:
+            self.set_status("Load a source GIF first")
+            return
+
+        if not self.palette_mapping:
+            self.auto_match_palettes()
+
+        if not self.palette_mapping:
+            self.set_status("Create a mapping first")
+            return
+
+        self.stop_swapped_preview_animation()
+
+        renderer = PaletteRenderer(self.palette_mapping)
+        rendered_frames, durations = renderer.render_gif_frames(self.source_image)
+
+        self.swapped_preview_frames = []
+        self.swapped_preview_durations = durations
+        self.swapped_preview_index = 0
+
+        for frame in rendered_frames:
+            display_frame = frame.copy().convert("RGBA")
+            display_frame.thumbnail((380, 380), Image.Resampling.NEAREST)
+            self.swapped_preview_frames.append(ImageTk.PhotoImage(display_frame))
+
+        if not self.swapped_preview_frames:
+            self.set_status("Could not render preview")
+            return
+
+        self.stop_source_animation()
+        self.source_title.configure(text="LIVE SWAP PREVIEW")
+        self.is_showing_swapped_preview = True
+        self.animate_swapped_preview()
+        self.set_status(f"Live preview rendered ({len(self.swapped_preview_frames)} frames)")
+
+    def animate_swapped_preview(self):
+        if not self.swapped_preview_frames:
+            return
+
+        self.source_preview_label.configure(
+            image=self.swapped_preview_frames[self.swapped_preview_index],
+            text=""
+        )
+
+        delay = self.swapped_preview_durations[self.swapped_preview_index]
+        self.swapped_preview_index = (self.swapped_preview_index + 1) % len(self.swapped_preview_frames)
+
+        self.swapped_preview_job = self.after(delay, self.animate_swapped_preview)
+
+    def stop_swapped_preview_animation(self):
+        if self.swapped_preview_job is not None:
+            self.after_cancel(self.swapped_preview_job)
+            self.swapped_preview_job = None
+
+    def restore_source_preview(self):
+        self.stop_swapped_preview_animation()
+        self.is_showing_swapped_preview = False
+        self.source_title.configure(text=self.original_source_title_text)
+
+        if self.source_frames:
+            self.source_frame_index = 0
+            self.animate_source()
+            self.set_status("Original source restored")
+        elif self.source_preview_image is not None:
+            self.source_preview_label.configure(image=self.source_preview_image, text="")
+            self.set_status("Original source restored")
+        else:
+            self.source_preview_label.configure(image=None, text="\nLoad source GIF")
+            self.set_status("Ready")
+
     def clear_mapping_display(self, clear_data=True):
         for widget in self.mapping_widgets:
             widget.destroy()
 
         self.mapping_widgets = []
+
+        self.original_source_title_text = "SOURCE"
+        self.swapped_preview_frames = []
+        self.swapped_preview_durations = []
+        self.swapped_preview_index = 0
+        self.swapped_preview_job = None
+        self.is_showing_swapped_preview = False
 
         if clear_data:
             self.palette_mapping = []
@@ -587,12 +695,18 @@ class PaletteForgeWindow(ctk.CTk):
     def clear_slot(self, slot):
         if slot == "source":
             self.stop_source_animation()
+            self.stop_swapped_preview_animation()
+            self.is_showing_swapped_preview = False
+            self.source_title.configure(text=self.original_source_title_text)
             self.source_image = None
             self.source_preview_image = None
             self.source_frames = []
             self.source_durations = []
             self.source_frame_index = 0
             self.source_palette_colors = []
+            self.swapped_preview_frames = []
+            self.swapped_preview_durations = []
+            self.swapped_preview_index = 0
             self.source_preview_label.configure(image=None, text="\nLoad source GIF")
             self.clear_palette_display("source")
         else:
