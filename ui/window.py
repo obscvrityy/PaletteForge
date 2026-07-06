@@ -5,13 +5,14 @@ from PIL import Image, ImageTk
 
 from core.swapper import PaletteMatcher
 from core.renderer import PaletteRenderer
+from core.segmentation import SpriteSegmenter
 
 
 class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.2.5")
+        self.title("PaletteForge v0.2.6")
         self.geometry("1200x720")
         self.minsize(1000, 650)
 
@@ -74,7 +75,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.version_label = ctk.CTkLabel(
             self.sidebar,
-            text="Version 0.2.5\nMaterial Matching",
+            text="Version 0.2.6\nSegmentation",
             font=("Arial", 12),
             text_color="#B5BAC1"
         )
@@ -151,6 +152,16 @@ class PaletteForgeWindow(ctk.CTk):
             text_color="#111214"
         )
         self.export_gif_button.pack(padx=20, pady=8, fill="x")
+
+        self.analyze_sprite_button = ctk.CTkButton(
+            self.sidebar,
+            text="🧩 Analyze Sprite",
+            command=self.analyze_sprite_regions,
+            height=40,
+            fg_color="#7289DA",
+            hover_color="#5865F2"
+        )
+        self.analyze_sprite_button.pack(padx=20, pady=8, fill="x")
 
         self.status_label = ctk.CTkLabel(
             self.sidebar,
@@ -663,6 +674,36 @@ class PaletteForgeWindow(ctk.CTk):
             return
 
         self.render_live_swap_preview()
+
+    def analyze_sprite_regions(self):
+        if self.source_image is None:
+            self.set_status("Load a source GIF first")
+            return
+
+        segmenter = SpriteSegmenter(self.source_image)
+        report = segmenter.analyze()
+
+        total_regions = report.get("total_regions", 0)
+        largest_regions = report.get("largest_regions", [])
+
+        lines = [
+            "Sprite Segmentation:",
+            f"Regions detected: {total_regions}",
+            "",
+            "Largest regions:"
+        ]
+
+        if not largest_regions:
+            lines.append("No regions detected.")
+        else:
+            for region in largest_regions[:8]:
+                lines.append(
+                    f"{region['label']} • {region['pixel_count']} px • "
+                    f"{region['dominant_hex']} • {region['likely_role']}"
+                )
+
+        self.file_info_label.configure(text="\n".join(lines))
+        self.set_status(f"Detected {total_regions} regions")
 
     def export_swapped_gif(self):
         if self.source_image is None:
