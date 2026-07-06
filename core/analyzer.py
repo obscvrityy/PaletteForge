@@ -2,7 +2,7 @@
 PaletteForge
 core/analyzer.py
 
-v0.2.4 - Region-Aware Sprite Role Detection
+v0.2.5 - Material-Aware Sprite Role Detection
 
 This version combines palette information with spatial region information:
 - edge ratio
@@ -18,12 +18,15 @@ colors are treated as interchangeable.
 import colorsys
 from collections import defaultdict
 
+from core.material_analyzer import MaterialAnalyzer
+
 
 class SpriteAnalyzer:
     def __init__(self, palette, region_metadata=None):
         self.palette_entries = self._normalize_palette_with_counts(palette)
         self.region_metadata = region_metadata or {}
         self.total_pixels = sum(entry["count"] for entry in self.palette_entries) or 1
+        self.material_analyzer = MaterialAnalyzer()
 
     def analyze(self):
         analyzed = []
@@ -34,8 +37,16 @@ class SpriteAnalyzer:
 
         analyzed = self._assign_body_roles(analyzed)
         analyzed = self._assign_region_roles(analyzed)
+        analyzed = self._assign_material_roles(analyzed)
 
         return analyzed
+
+
+    def _assign_material_roles(self, colors):
+        for color in colors:
+            color["material"] = self.material_analyzer.classify(color)
+
+        return colors
 
     def _analyze_entry(self, entry, rank):
         rgb = entry["rgb"]

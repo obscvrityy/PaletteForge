@@ -2,15 +2,15 @@
 PaletteForge
 core/swapper.py
 
-v0.2.4 - Region Detection Matching
+v0.2.5 - Material-Aware Matching
 
-This matcher uses both palette analysis and sprite-region analysis.
+This matcher adds a material layer on top of sprite role and region detection.
 
-Main improvements:
-- Source/target images are inspected spatially.
-- Outline-like colors are protected.
-- Interior body colors are favored for body-to-body mapping.
-- Small saturated colors are treated more like accents.
+The big idea:
+- body should map to body
+- belly/light should map to belly/light
+- outline should map to outline
+- accent/energy should map to accent/energy
 """
 
 import math
@@ -34,33 +34,32 @@ class PaletteMatcher:
         if not self.source_colors or not self.target_colors:
             return self.mapping
 
-        source_groups = self._group_by_semantic_role(self.source_colors)
-        target_groups = self._group_by_semantic_role(self.target_colors)
+        source_groups = self._group_by_material(self.source_colors)
+        target_groups = self._group_by_material(self.target_colors)
 
         used_sources = set()
         used_targets = set()
 
-        role_order = [
-            "outline",
-            "primary_body_shadow",
-            "primary_body",
-            "primary_body_highlight",
-            "secondary_body_shadow",
+        material_order = [
+            "line_art",
+            "main_body",
             "secondary_body",
-            "secondary_body_highlight",
-            "shadow",
-            "neutral",
-            "highlight",
+            "belly_light",
+            "highlight_light",
+            "colored_surface",
             "accent",
+            "energy_accent",
+            "small_accent",
+            "misc",
         ]
 
-        for role in role_order:
-            source_group = source_groups.get(role, [])
+        for material in material_order:
+            source_group = source_groups.get(material, [])
 
             if not source_group:
                 continue
 
-            target_group = self._best_target_group(role, target_groups)
+            target_group = self._best_target_material_group(material, target_groups)
 
             if not target_group:
                 continue
@@ -105,46 +104,45 @@ class PaletteMatcher:
             for entry in self.mapping
         }
 
-    def _group_by_semantic_role(self, colors):
+    def _group_by_material(self, colors):
         groups = {}
 
         for color in colors:
-            role = color["semantic_role"]
-            groups.setdefault(role, []).append(color)
+            material = color.get("material", "misc")
+            groups.setdefault(material, []).append(color)
 
-        for role in groups:
-            groups[role] = sorted(groups[role], key=lambda entry: entry["brightness"])
+        for material in groups:
+            groups[material] = sorted(groups[material], key=lambda entry: entry["brightness"])
 
         return groups
 
-    def _best_target_group(self, source_role, target_groups):
-        if source_role in target_groups:
-            return target_groups[source_role]
+    def _best_target_material_group(self, source_material, target_groups):
+        if source_material in target_groups:
+            return target_groups[source_material]
 
-        fallback_roles = {
-            "primary_body_shadow": ["primary_body", "shadow", "secondary_body_shadow"],
-            "primary_body": ["secondary_body", "accent"],
-            "primary_body_highlight": ["primary_body", "highlight", "secondary_body_highlight"],
-            "secondary_body_shadow": ["secondary_body", "shadow", "primary_body_shadow"],
-            "secondary_body": ["primary_body", "accent", "neutral"],
-            "secondary_body_highlight": ["secondary_body", "highlight", "primary_body_highlight"],
-            "outline": ["shadow"],
-            "shadow": ["outline", "primary_body_shadow", "secondary_body_shadow"],
-            "neutral": ["highlight", "secondary_body"],
-            "highlight": ["neutral", "primary_body_highlight", "secondary_body_highlight"],
-            "accent": ["secondary_body", "primary_body", "highlight"],
+        fallback_materials = {
+            "line_art": ["misc"],
+            "main_body": ["colored_surface", "secondary_body", "accent"],
+            "secondary_body": ["accent", "colored_surface", "main_body", "belly_light"],
+            "belly_light": ["highlight_light", "secondary_body", "misc"],
+            "highlight_light": ["belly_light", "secondary_body", "misc"],
+            "colored_surface": ["main_body", "secondary_body", "accent"],
+            "accent": ["small_accent", "energy_accent", "secondary_body"],
+            "energy_accent": ["small_accent", "accent"],
+            "small_accent": ["accent", "energy_accent"],
+            "misc": ["colored_surface", "secondary_body", "belly_light"],
         }
 
-        for fallback in fallback_roles.get(source_role, []):
+        for fallback in fallback_materials.get(source_material, []):
             if fallback in target_groups:
                 return target_groups[fallback]
 
         if target_groups:
-            largest_role = max(
+            largest_material = max(
                 target_groups.keys(),
-                key=lambda role: sum(color["count"] for color in target_groups[role])
+                key=lambda material: sum(color["count"] for color in target_groups[material])
             )
-            return target_groups[largest_role]
+            return target_groups[largest_material]
 
         return []
 
@@ -172,33 +170,49 @@ class PaletteMatcher:
         score = 0.0
 
         if target["rgb"] in used_targets:
-            score += 22
+            score += 24
+
+        if source.get("material") == target.get("material"):
+            score -= 130
+        elif self._materials_compatible(source.get("material"), target.get("material")):
+            score -= 58
+        else:
+            score += 46
 
         if source["semantic_role"] == target["semantic_role"]:
-            score -= 95
+            score -= 70
         elif self._roles_compatible(source["semantic_role"], target["semantic_role"]):
-            score -= 36
+            score -= 28
         else:
-            score += 28
+            score += 24
 
-        # Region behavior should matter.
-        score += abs(source.get("edge_ratio", 0) - target.get("edge_ratio", 0)) * 38
-        score += abs(source.get("interior_ratio", 0) - target.get("interior_ratio", 0)) * 20
+        score += abs(source.get("edge_ratio", 0) - target.get("edge_ratio", 0)) * 42
+        score += abs(source.get("interior_ratio", 0) - target.get("interior_ratio", 0)) * 24
 
-        if source["family"] == target["family"]:
-            score -= 8
+        score += abs(source["brightness"] - target["brightness"]) * 0.34
+        score += abs(source["saturation"] - target["saturation"]) * 18
+        score += abs(source["rank"] - target["rank"]) * 0.45
 
-        score += abs(source["brightness"] - target["brightness"]) * 0.38
-        score += abs(source["saturation"] - target["saturation"]) * 20
-        score += abs(source["rank"] - target["rank"]) * 0.55
+        if source.get("material") == "line_art" and target["brightness"] > 90:
+            score += 150
 
-        if source["semantic_role"] == "outline" and target["brightness"] > 90:
+        if source.get("material") != "line_art" and target.get("material") == "line_art":
             score += 120
 
-        if source["semantic_role"] != "outline" and target["semantic_role"] == "outline":
+        if source.get("material") == "belly_light" and target["brightness"] < 110:
             score += 90
 
         return score
+
+    def _materials_compatible(self, material_a, material_b):
+        compatible_groups = [
+            {"main_body", "colored_surface"},
+            {"secondary_body", "accent", "colored_surface"},
+            {"belly_light", "highlight_light", "misc"},
+            {"accent", "small_accent", "energy_accent"},
+        ]
+
+        return any(material_a in group and material_b in group for group in compatible_groups)
 
     def _roles_compatible(self, role_a, role_b):
         compatible_groups = [
@@ -223,6 +237,8 @@ class PaletteMatcher:
             "target_role": target["semantic_role"],
             "source_family": source["family"],
             "target_family": target["family"],
+            "source_material": source.get("material", "misc"),
+            "target_material": target.get("material", "misc"),
             "source_edge_ratio": round(source.get("edge_ratio", 0), 3),
             "target_edge_ratio": round(target.get("edge_ratio", 0), 3),
         }
