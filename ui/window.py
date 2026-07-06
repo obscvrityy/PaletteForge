@@ -11,7 +11,7 @@ class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.1.5")
+        self.title("PaletteForge v0.1.6")
         self.geometry("1200x720")
         self.minsize(1000, 650)
 
@@ -40,6 +40,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.palette_mapping = []
         self.mapping_widgets = []
+        self.mapping_controls = []
 
         self.original_source_title_text = "SOURCE"
         self.swapped_preview_frames = []
@@ -73,7 +74,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.version_label = ctk.CTkLabel(
             self.sidebar,
-            text="Version 0.1.5\nLive Swap Preview",
+            text="Version 0.1.6\nManual Mapping",
             font=("Arial", 12),
             text_color="#B5BAC1"
         )
@@ -129,6 +130,16 @@ class PaletteForgeWindow(ctk.CTk):
             hover_color="#383A40"
         )
         self.show_original_button.pack(padx=20, pady=8, fill="x")
+
+        self.apply_mapping_button = ctk.CTkButton(
+            self.sidebar,
+            text="Apply Manual Mapping",
+            command=self.apply_manual_mapping,
+            height=40,
+            fg_color="#5865F2",
+            hover_color="#4752C4"
+        )
+        self.apply_mapping_button.pack(padx=20, pady=8, fill="x")
 
         self.status_label = ctk.CTkLabel(
             self.sidebar,
@@ -274,7 +285,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.mapping_title = ctk.CTkLabel(
             self.inspector,
-            text="Auto Match Mapping",
+            text="Palette Mapping",
             font=("Arial", 15, "bold"),
             text_color="#FFFFFF"
         )
@@ -528,6 +539,8 @@ class PaletteForgeWindow(ctk.CTk):
             self.mapping_count_label.configure(text="0 matches")
             return
 
+        target_options = self.get_target_palette_hex_options()
+
         for index, entry in enumerate(mapping, start=1):
             source_hex = entry["source_hex"]
             target_hex = entry["target_hex"]
@@ -577,18 +590,74 @@ class PaletteForgeWindow(ctk.CTk):
             target_swatch.pack(side="left", padx=3, pady=7)
             target_swatch.pack_propagate(False)
 
-            label = ctk.CTkLabel(
+            values = target_options if target_options else [target_hex]
+
+            target_menu = ctk.CTkOptionMenu(
                 row,
-                text=f"{source_hex} → {target_hex}",
-                font=("Arial", 9),
-                text_color="#FFFFFF"
+                values=values,
+                width=105,
+                height=26,
+                fg_color="#2B2D31",
+                button_color="#383A40",
+                button_hover_color="#4752C4",
+                command=lambda selected_hex, mapping_index=index - 1, swatch=target_swatch: self.update_mapping_target(
+                    mapping_index,
+                    selected_hex,
+                    swatch
+                )
             )
-            label.pack(side="left", padx=(6, 4), anchor="w")
+            target_menu.set(target_hex)
+            target_menu.pack(side="left", padx=(6, 4), anchor="w")
 
             self.mapping_widgets.append(row)
+            self.mapping_controls.append(target_menu)
 
         self.mapping_count_label.configure(text=f"{len(mapping)} matches")
 
+    def get_target_palette_hex_options(self):
+        options = []
+
+        for item in self.target_palette_colors:
+            if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], tuple):
+                rgb = item[0]
+            else:
+                rgb = item
+
+            if isinstance(rgb, tuple) and len(rgb) >= 3:
+                options.append("#{:02X}{:02X}{:02X}".format(
+                    int(rgb[0]),
+                    int(rgb[1]),
+                    int(rgb[2])
+                ))
+
+        return options
+
+    def update_mapping_target(self, mapping_index, selected_hex, target_swatch):
+        if mapping_index < 0 or mapping_index >= len(self.palette_mapping):
+            return
+
+        target_rgb = self.hex_to_rgb(selected_hex)
+
+        self.palette_mapping[mapping_index]["target_hex"] = selected_hex
+        self.palette_mapping[mapping_index]["target_rgb"] = target_rgb
+
+        target_swatch.configure(fg_color=selected_hex)
+        self.set_status("Manual mapping updated")
+
+    def apply_manual_mapping(self):
+        if not self.palette_mapping:
+            self.set_status("Create a mapping first")
+            return
+
+        self.render_live_swap_preview()
+
+    def hex_to_rgb(self, hex_color):
+        clean_hex = hex_color.replace("#", "")
+        return (
+            int(clean_hex[0:2], 16),
+            int(clean_hex[2:4], 16),
+            int(clean_hex[4:6], 16)
+        )
 
     def render_live_swap_preview(self):
         if self.source_image is None:
@@ -666,13 +735,7 @@ class PaletteForgeWindow(ctk.CTk):
             widget.destroy()
 
         self.mapping_widgets = []
-
-        self.original_source_title_text = "SOURCE"
-        self.swapped_preview_frames = []
-        self.swapped_preview_durations = []
-        self.swapped_preview_index = 0
-        self.swapped_preview_job = None
-        self.is_showing_swapped_preview = False
+        self.mapping_controls = []
 
         if clear_data:
             self.palette_mapping = []
