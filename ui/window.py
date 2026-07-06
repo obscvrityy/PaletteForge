@@ -11,7 +11,7 @@ class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.2.1")
+        self.title("PaletteForge v0.2.3")
         self.geometry("1200x720")
         self.minsize(1000, 650)
 
@@ -74,7 +74,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.version_label = ctk.CTkLabel(
             self.sidebar,
-            text="Version 0.2.1\nSmart Matching",
+            text="Version 0.2.3\nSprite Roles",
             font=("Arial", 12),
             text_color="#B5BAC1"
         )
@@ -533,7 +533,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.display_mapping(mapping)
         self.mapping_count_label.configure(text=f"{len(mapping)} matches")
-        self.set_status(f"Smart matched {len(mapping)} colors")
+        self.set_status(f"Role matched {len(mapping)} colors")
         self.update_file_info()
 
     def display_mapping(self, mapping):

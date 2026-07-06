@@ -2,94 +2,92 @@
 PaletteForge
 core/swapper.py
 
-v0.2.1 - Smart Palette Matching
+v0.2.3 - Sprite Role Detection Matching
 
-This replaces the original brightness-only matcher with a smarter palette matcher
-that considers hue, saturation, brightness, and color roles.
+This matcher uses SpriteAnalyzer to match colors by what they appear to do in
+the sprite, not just by brightness or hue.
 
-It is still automatic and fast, but produces much better sprite swaps than
-simple darkest-to-darkest matching.
+The main improvement:
+- primary_body maps to primary_body
+- secondary_body maps to secondary_body
+- outline maps to outline
+- highlights stay highlights
+- accents stay accents when possible
 """
 
-import colorsys
 import math
+
+from core.analyzer import SpriteAnalyzer
 
 
 class PaletteMatcher:
-    """
-    Matches source palette colors to target palette colors.
-
-    v0.2.1 strategy:
-    - Normalize Palette Explorer data into RGB tuples.
-    - Analyze each color's role:
-      outline, neutral, highlight, shadow, saturated, warm, cool, etc.
-    - Score potential source-to-target pairings using:
-      role similarity
-      brightness similarity
-      saturation similarity
-      hue relationship
-      pixel-rank importance
-    - Avoid reusing target colors until needed.
-    """
-
     def __init__(self, source_palette, target_palette):
-        self.source_entries = self._normalize_palette_with_counts(source_palette)
-        self.target_entries = self._normalize_palette_with_counts(target_palette)
-
-        self.source_palette = [entry["rgb"] for entry in self.source_entries]
-        self.target_palette = [entry["rgb"] for entry in self.target_entries]
-
+        self.source_colors = SpriteAnalyzer(source_palette).analyze()
+        self.target_colors = SpriteAnalyzer(target_palette).analyze()
         self.mapping = []
 
     def auto_match(self):
         self.mapping = []
 
-        if not self.source_entries or not self.target_entries:
+        if not self.source_colors or not self.target_colors:
             return self.mapping
 
-        analyzed_sources = [self._analyze_entry(entry, index) for index, entry in enumerate(self.source_entries)]
-        analyzed_targets = [self._analyze_entry(entry, index) for index, entry in enumerate(self.target_entries)]
+        source_groups = self._group_by_semantic_role(self.source_colors)
+        target_groups = self._group_by_semantic_role(self.target_colors)
 
-        # Match important/high-coverage colors first.
-        analyzed_sources = sorted(
-            analyzed_sources,
-            key=lambda entry: (
-                self._role_priority(entry),
-                -entry["count"],
-                entry["brightness"]
+        used_sources = set()
+        used_targets = set()
+
+        role_order = [
+            "outline",
+            "primary_body_shadow",
+            "primary_body",
+            "primary_body_highlight",
+            "secondary_body_shadow",
+            "secondary_body",
+            "secondary_body_highlight",
+            "shadow",
+            "neutral",
+            "highlight",
+            "accent",
+        ]
+
+        for role in role_order:
+            source_group = source_groups.get(role, [])
+
+            if not source_group:
+                continue
+
+            target_group = self._best_target_group(role, target_groups)
+
+            if not target_group:
+                continue
+
+            pairs = self._map_group_by_brightness(source_group, target_group)
+
+            for source, target in pairs:
+                if source["rgb"] in used_sources:
+                    continue
+
+                self.mapping.append(self._make_mapping_entry(source, target))
+                used_sources.add(source["rgb"])
+                used_targets.add(target["rgb"])
+
+        # Fallback for any source colors that were not handled.
+        for source in self.source_colors:
+            if source["rgb"] in used_sources:
+                continue
+
+            target = min(
+                self.target_colors,
+                key=lambda candidate: self._match_score(source, candidate, used_targets)
             )
-        )
 
-        unused_targets = analyzed_targets[:]
+            self.mapping.append(self._make_mapping_entry(source, target))
+            used_sources.add(source["rgb"])
+            used_targets.add(target["rgb"])
 
-        for source in analyzed_sources:
-            if unused_targets:
-                target = min(
-                    unused_targets,
-                    key=lambda candidate: self._match_score(source, candidate)
-                )
-                unused_targets.remove(target)
-            else:
-                target = min(
-                    analyzed_targets,
-                    key=lambda candidate: self._match_score(source, candidate)
-                )
-
-            self.mapping.append(
-                {
-                    "source_rgb": source["rgb"],
-                    "target_rgb": target["rgb"],
-                    "source_hex": self.rgb_to_hex(source["rgb"]),
-                    "target_hex": self.rgb_to_hex(target["rgb"]),
-                    "source_brightness": round(source["brightness"], 2),
-                    "target_brightness": round(target["brightness"], 2),
-                    "source_role": source["role"],
-                    "target_role": target["role"],
-                }
-            )
-
-        # Display mapping in source palette order so the UI feels predictable.
-        source_order = {entry["rgb"]: index for index, entry in enumerate(self.source_entries)}
+        source_order = {entry["rgb"]: index for index, entry in enumerate(self.source_colors)}
         self.mapping = sorted(
             self.mapping,
             key=lambda entry: source_order.get(entry["source_rgb"], 9999)
@@ -106,132 +104,122 @@ class PaletteMatcher:
             for entry in self.mapping
         }
 
-    def _match_score(self, source, target):
+    def _group_by_semantic_role(self, colors):
+        groups = {}
+
+        for color in colors:
+            role = color["semantic_role"]
+            groups.setdefault(role, []).append(color)
+
+        for role in groups:
+            groups[role] = sorted(groups[role], key=lambda entry: entry["brightness"])
+
+        return groups
+
+    def _best_target_group(self, source_role, target_groups):
+        if source_role in target_groups:
+            return target_groups[source_role]
+
+        fallback_roles = {
+            "primary_body_shadow": ["primary_body", "shadow", "secondary_body_shadow"],
+            "primary_body": ["secondary_body", "accent"],
+            "primary_body_highlight": ["primary_body", "highlight", "secondary_body_highlight"],
+            "secondary_body_shadow": ["secondary_body", "shadow", "primary_body_shadow"],
+            "secondary_body": ["primary_body", "accent", "neutral"],
+            "secondary_body_highlight": ["secondary_body", "highlight", "primary_body_highlight"],
+            "outline": ["shadow", "neutral"],
+            "shadow": ["outline", "primary_body_shadow", "secondary_body_shadow"],
+            "neutral": ["highlight", "secondary_body", "accent"],
+            "highlight": ["neutral", "primary_body_highlight", "secondary_body_highlight"],
+            "accent": ["secondary_body", "primary_body", "highlight"],
+        }
+
+        for fallback in fallback_roles.get(source_role, []):
+            if fallback in target_groups:
+                return target_groups[fallback]
+
+        if target_groups:
+            largest_role = max(
+                target_groups.keys(),
+                key=lambda role: sum(color["count"] for color in target_groups[role])
+            )
+            return target_groups[largest_role]
+
+        return []
+
+    def _map_group_by_brightness(self, source_group, target_group):
+        if not source_group or not target_group:
+            return []
+
+        source_sorted = sorted(source_group, key=lambda entry: entry["brightness"])
+        target_sorted = sorted(target_group, key=lambda entry: entry["brightness"])
+
+        if len(source_sorted) == 1:
+            target = target_sorted[len(target_sorted) // 2]
+            return [(source_sorted[0], target)]
+
+        pairs = []
+
+        for source_index, source in enumerate(source_sorted):
+            position = source_index / max(len(source_sorted) - 1, 1)
+            target_index = round(position * max(len(target_sorted) - 1, 0))
+            pairs.append((source, target_sorted[target_index]))
+
+        return pairs
+
+    def _match_score(self, source, target, used_targets):
         score = 0.0
 
-        # Color role is the strongest signal.
-        if source["role"] == target["role"]:
-            score -= 55
-        elif self._roles_are_compatible(source["role"], target["role"]):
-            score -= 28
+        if target["rgb"] in used_targets:
+            score += 18
+
+        if source["semantic_role"] == target["semantic_role"]:
+            score -= 90
+        elif self._roles_compatible(source["semantic_role"], target["semantic_role"]):
+            score -= 35
         else:
-            score += 20
+            score += 25
 
-        # Preserve value/ramp structure.
-        score += abs(source["brightness"] - target["brightness"]) * 0.55
+        if source["family"] == target["family"]:
+            score -= 12
 
-        # Preserve intensity where possible.
-        score += abs(source["saturation"] - target["saturation"]) * 35
+        score += abs(source["brightness"] - target["brightness"]) * 0.42
+        score += abs(source["saturation"] - target["saturation"]) * 24
+        score += abs(source["rank"] - target["rank"]) * 0.65
 
-        # Hue matters most for colorful sprite regions, less for neutral colors.
-        if source["saturation"] > 0.18 and target["saturation"] > 0.18:
-            score += self._hue_distance(source["hue"], target["hue"]) * 25
-
-        # Prefer similar palette importance.
-        score += abs(source["rank"] - target["rank"]) * 1.35
-
-        # Keep outlines dark.
-        if source["role"] == "outline" and target["brightness"] > 90:
-            score += 80
-
-        # Keep highlights light.
-        if source["role"] == "highlight" and target["brightness"] < 120:
-            score += 55
-
-        # Keep neutral/white/gray from hijacking saturated body colors.
-        if source["is_neutral"] != target["is_neutral"]:
-            score += 30
+        if source["semantic_role"] == "outline" and target["brightness"] > 90:
+            score += 100
 
         return score
 
-    def _roles_are_compatible(self, role_a, role_b):
+    def _roles_compatible(self, role_a, role_b):
         compatible_groups = [
+            {"primary_body_shadow", "primary_body", "primary_body_highlight"},
+            {"secondary_body_shadow", "secondary_body", "secondary_body_highlight"},
+            {"primary_body", "secondary_body", "accent"},
             {"outline", "shadow"},
-            {"highlight", "light"},
-            {"neutral", "highlight", "light"},
-            {"warm", "saturated"},
-            {"cool", "saturated"},
-            {"shadow", "midtone"},
-            {"midtone", "saturated"},
+            {"neutral", "highlight"},
         ]
 
         return any(role_a in group and role_b in group for group in compatible_groups)
 
-    def _role_priority(self, entry):
-        priority = {
-            "outline": 0,
-            "shadow": 1,
-            "midtone": 2,
-            "saturated": 3,
-            "warm": 4,
-            "cool": 4,
-            "neutral": 5,
-            "light": 6,
-            "highlight": 7,
-        }
-
-        return priority.get(entry["role"], 99)
-
-    def _analyze_entry(self, entry, rank):
-        rgb = entry["rgb"]
-        r, g, b = rgb
-
-        hue, saturation, value = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-        brightness = self.color_brightness(rgb)
-
-        is_neutral = saturation < 0.14
-        role = self._classify_role(rgb, hue, saturation, value, brightness)
-
+    def _make_mapping_entry(self, source, target):
         return {
-            "rgb": rgb,
-            "count": entry["count"],
-            "rank": rank,
-            "hue": hue,
-            "saturation": saturation,
-            "value": value,
-            "brightness": brightness,
-            "is_neutral": is_neutral,
-            "role": role,
+            "source_rgb": source["rgb"],
+            "target_rgb": target["rgb"],
+            "source_hex": self.rgb_to_hex(source["rgb"]),
+            "target_hex": self.rgb_to_hex(target["rgb"]),
+            "source_brightness": round(source["brightness"], 2),
+            "target_brightness": round(target["brightness"], 2),
+            "source_role": source["semantic_role"],
+            "target_role": target["semantic_role"],
+            "source_family": source["family"],
+            "target_family": target["family"],
         }
 
-    def _classify_role(self, rgb, hue, saturation, value, brightness):
-        r, g, b = rgb
-
-        if brightness < 38:
-            return "outline"
-
-        if brightness < 80:
-            return "shadow"
-
-        if saturation < 0.12 and brightness > 190:
-            return "highlight"
-
-        if saturation < 0.14:
-            return "neutral"
-
-        if brightness > 185 and value > 0.7:
-            return "light"
-
-        if saturation > 0.35 and 0.02 <= hue <= 0.17:
-            return "warm"
-
-        if saturation > 0.35 and 0.50 <= hue <= 0.75:
-            return "cool"
-
-        if saturation > 0.30:
-            return "saturated"
-
-        return "midtone"
-
     @staticmethod
-    def _hue_distance(hue_a, hue_b):
-        distance = abs(hue_a - hue_b)
-        return min(distance, 1 - distance)
-
-    @staticmethod
-    def color_brightness(color):
-        r, g, b = color
-        return (0.299 * r) + (0.587 * g) + (0.114 * b)
+    def rgb_to_hex(color):
+        return "#{:02X}{:02X}{:02X}".format(*color)
 
     @staticmethod
     def color_distance(color_a, color_b):
@@ -240,40 +228,3 @@ class PaletteMatcher:
             + (color_a[1] - color_b[1]) ** 2
             + (color_a[2] - color_b[2]) ** 2
         )
-
-    @staticmethod
-    def rgb_to_hex(color):
-        return "#{:02X}{:02X}{:02X}".format(*color)
-
-    @staticmethod
-    def _normalize_palette_with_counts(palette):
-        normalized = []
-
-        for item in palette:
-            count = 0
-
-            # Current Palette Explorer format:
-            # [((r, g, b), pixel_count), ...]
-            if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], tuple):
-                rgb = item[0]
-                count = item[1]
-            else:
-                rgb = item
-                count = 1
-
-            if isinstance(rgb, tuple) and len(rgb) >= 3:
-                normalized.append(
-                    {
-                        "rgb": (int(rgb[0]), int(rgb[1]), int(rgb[2])),
-                        "count": int(count),
-                    }
-                )
-
-        return normalized
-
-    @staticmethod
-    def _normalize_palette(palette):
-        return [
-            entry["rgb"]
-            for entry in PaletteMatcher._normalize_palette_with_counts(palette)
-        ]
