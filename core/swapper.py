@@ -2,28 +2,30 @@
 PaletteForge
 core/swapper.py
 
-v0.2.3 - Sprite Role Detection Matching
+v0.2.4 - Region Detection Matching
 
-This matcher uses SpriteAnalyzer to match colors by what they appear to do in
-the sprite, not just by brightness or hue.
+This matcher uses both palette analysis and sprite-region analysis.
 
-The main improvement:
-- primary_body maps to primary_body
-- secondary_body maps to secondary_body
-- outline maps to outline
-- highlights stay highlights
-- accents stay accents when possible
+Main improvements:
+- Source/target images are inspected spatially.
+- Outline-like colors are protected.
+- Interior body colors are favored for body-to-body mapping.
+- Small saturated colors are treated more like accents.
 """
 
 import math
 
 from core.analyzer import SpriteAnalyzer
+from core.region_analyzer import SpriteRegionAnalyzer
 
 
 class PaletteMatcher:
-    def __init__(self, source_palette, target_palette):
-        self.source_colors = SpriteAnalyzer(source_palette).analyze()
-        self.target_colors = SpriteAnalyzer(target_palette).analyze()
+    def __init__(self, source_palette, target_palette, source_image=None, target_image=None):
+        source_regions = SpriteRegionAnalyzer(source_image).analyze() if source_image is not None else {}
+        target_regions = SpriteRegionAnalyzer(target_image).analyze() if target_image is not None else {}
+
+        self.source_colors = SpriteAnalyzer(source_palette, source_regions).analyze()
+        self.target_colors = SpriteAnalyzer(target_palette, target_regions).analyze()
         self.mapping = []
 
     def auto_match(self):
@@ -73,7 +75,6 @@ class PaletteMatcher:
                 used_sources.add(source["rgb"])
                 used_targets.add(target["rgb"])
 
-        # Fallback for any source colors that were not handled.
         for source in self.source_colors:
             if source["rgb"] in used_sources:
                 continue
@@ -127,9 +128,9 @@ class PaletteMatcher:
             "secondary_body_shadow": ["secondary_body", "shadow", "primary_body_shadow"],
             "secondary_body": ["primary_body", "accent", "neutral"],
             "secondary_body_highlight": ["secondary_body", "highlight", "primary_body_highlight"],
-            "outline": ["shadow", "neutral"],
+            "outline": ["shadow"],
             "shadow": ["outline", "primary_body_shadow", "secondary_body_shadow"],
-            "neutral": ["highlight", "secondary_body", "accent"],
+            "neutral": ["highlight", "secondary_body"],
             "highlight": ["neutral", "primary_body_highlight", "secondary_body_highlight"],
             "accent": ["secondary_body", "primary_body", "highlight"],
         }
@@ -171,24 +172,31 @@ class PaletteMatcher:
         score = 0.0
 
         if target["rgb"] in used_targets:
-            score += 18
+            score += 22
 
         if source["semantic_role"] == target["semantic_role"]:
-            score -= 90
+            score -= 95
         elif self._roles_compatible(source["semantic_role"], target["semantic_role"]):
-            score -= 35
+            score -= 36
         else:
-            score += 25
+            score += 28
+
+        # Region behavior should matter.
+        score += abs(source.get("edge_ratio", 0) - target.get("edge_ratio", 0)) * 38
+        score += abs(source.get("interior_ratio", 0) - target.get("interior_ratio", 0)) * 20
 
         if source["family"] == target["family"]:
-            score -= 12
+            score -= 8
 
-        score += abs(source["brightness"] - target["brightness"]) * 0.42
-        score += abs(source["saturation"] - target["saturation"]) * 24
-        score += abs(source["rank"] - target["rank"]) * 0.65
+        score += abs(source["brightness"] - target["brightness"]) * 0.38
+        score += abs(source["saturation"] - target["saturation"]) * 20
+        score += abs(source["rank"] - target["rank"]) * 0.55
 
         if source["semantic_role"] == "outline" and target["brightness"] > 90:
-            score += 100
+            score += 120
+
+        if source["semantic_role"] != "outline" and target["semantic_role"] == "outline":
+            score += 90
 
         return score
 
@@ -215,6 +223,8 @@ class PaletteMatcher:
             "target_role": target["semantic_role"],
             "source_family": source["family"],
             "target_family": target["family"],
+            "source_edge_ratio": round(source.get("edge_ratio", 0), 3),
+            "target_edge_ratio": round(target.get("edge_ratio", 0), 3),
         }
 
     @staticmethod

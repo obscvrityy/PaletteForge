@@ -11,7 +11,7 @@ class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.2.3")
+        self.title("PaletteForge v0.2.4")
         self.geometry("1200x720")
         self.minsize(1000, 650)
 
@@ -74,7 +74,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.version_label = ctk.CTkLabel(
             self.sidebar,
-            text="Version 0.2.3\nSprite Roles",
+            text="Version 0.2.4\nRegion Detection",
             font=("Arial", 12),
             text_color="#B5BAC1"
         )
@@ -525,7 +525,9 @@ class PaletteForgeWindow(ctk.CTk):
 
         matcher = PaletteMatcher(
             self.source_palette_colors,
-            self.target_palette_colors
+            self.target_palette_colors,
+            source_image=self.source_image,
+            target_image=self.target_image
         )
 
         mapping = matcher.auto_match()
@@ -533,7 +535,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         self.display_mapping(mapping)
         self.mapping_count_label.configure(text=f"{len(mapping)} matches")
-        self.set_status(f"Role matched {len(mapping)} colors")
+        self.set_status(f"Region matched {len(mapping)} colors")
         self.update_file_info()
 
     def display_mapping(self, mapping):
