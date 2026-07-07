@@ -1,4 +1,4 @@
-# PaletteForge Feature Backlog
+# Feature Backlog
 
 ## Critical
 - PF-001 Professional Workspace UI
@@ -8,14 +8,15 @@
 ## High Priority
 - Interactive Palette Editor
 - Undo / Redo
+- Palette History
 - Drag & Drop Import
 - Project Save / Load
-- Palette History
 
 ## Future
 - Sprite Sheet Studio
-- Batch Processing
+- Pixel Editor
+- Animation Timeline
 - Palette Library
-- Shiny Creator
-- Mobile/Web companion app
-- AI palette generation
+- Presets
+- AI Palette Designer
+- Marketplace / Community Hub
