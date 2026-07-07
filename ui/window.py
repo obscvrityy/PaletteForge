@@ -12,9 +12,9 @@ class PaletteForgeWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("PaletteForge v0.2.9")
-        self.geometry("1200x720")
-        self.minsize(1000, 650)
+        self.title("PaletteForge v0.3.0 — Professional Workspace UI")
+        self.geometry("1500x900")
+        self.minsize(1280, 760)
 
         self.source_image = None
         self.target_image = None
@@ -50,56 +50,103 @@ class PaletteForgeWindow(ctk.CTk):
         self.swapped_preview_job = None
         self.is_showing_swapped_preview = False
 
-        self.configure(fg_color="#111214")
+        self.configure(fg_color="#0B0D10")
 
         self.create_layout()
 
     def create_layout(self):
-        self.grid_columnconfigure(0, weight=0)
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure(2, weight=0)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
-        # Left sidebar
-        self.sidebar = ctk.CTkFrame(self, width=220, fg_color="#1E1F22", corner_radius=0)
+        self.font_title = ("Segoe UI", 24, "bold")
+        self.font_section = ("Segoe UI", 15, "bold")
+        self.font_body = ("Segoe UI", 12)
+        self.font_small = ("Segoe UI", 10)
+
+        # Top product bar
+        self.topbar = ctk.CTkFrame(self, height=64, fg_color="#111318", corner_radius=0)
+        self.topbar.grid(row=0, column=0, sticky="ew")
+        self.topbar.grid_propagate(False)
+        self.topbar.grid_columnconfigure(0, weight=1)
+        self.topbar.grid_columnconfigure(1, weight=0)
+
+        self.brand_label = ctk.CTkLabel(
+            self.topbar,
+            text="🎨 PaletteForge Studio",
+            font=("Segoe UI", 24, "bold"),
+            text_color="#FFFFFF"
+        )
+        self.brand_label.grid(row=0, column=0, padx=24, pady=(10, 0), sticky="w")
+
+        self.build_label = ctk.CTkLabel(
+            self.topbar,
+            text="v0.3.0  •  Professional Workspace UI",
+            font=("Segoe UI", 12),
+            text_color="#9AA3B2"
+        )
+        self.build_label.grid(row=1, column=0, padx=26, pady=(0, 10), sticky="w")
+
+        self.priority_label = ctk.CTkLabel(
+            self.topbar,
+            text="Priority Stack: Interface → Smart Match → Resizer",
+            font=("Segoe UI", 12, "bold"),
+            text_color="#F0B232"
+        )
+        self.priority_label.grid(row=0, column=1, rowspan=2, padx=24, pady=12, sticky="e")
+
+        # Main workspace
+        self.workspace = ctk.CTkFrame(self, fg_color="#0B0D10", corner_radius=0)
+        self.workspace.grid(row=1, column=0, sticky="nsew")
+        self.workspace.grid_columnconfigure(0, weight=0)
+        self.workspace.grid_columnconfigure(1, weight=1)
+        self.workspace.grid_columnconfigure(2, weight=0)
+        self.workspace.grid_rowconfigure(0, weight=1)
+
+        # Left action rail
+        self.sidebar = ctk.CTkFrame(self.workspace, width=255, fg_color="#151922", corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         self.sidebar.grid_propagate(False)
 
-        self.logo_label = ctk.CTkLabel(
+        self.actions_title = ctk.CTkLabel(
             self.sidebar,
-            text="🎨\nPaletteForge",
-            font=("Arial", 24, "bold"),
+            text="Workspace Actions",
+            font=self.font_section,
             text_color="#FFFFFF"
         )
-        self.logo_label.pack(pady=(25, 5))
-
-        self.version_label = ctk.CTkLabel(
-            self.sidebar,
-            text="Version 0.2.9\nSmart Match Alpha",
-            font=("Arial", 12),
-            text_color="#B5BAC1"
-        )
-        self.version_label.pack(pady=(0, 25))
+        self.actions_title.pack(padx=18, pady=(22, 10), anchor="w")
 
         self.load_source_button = ctk.CTkButton(
             self.sidebar,
-            text="Load Source GIF",
+            text="Load Source Image / GIF",
             command=lambda: self.load_image("source"),
             height=40,
             fg_color="#5865F2",
-            hover_color="#4752C4"
+            hover_color="#4752C4",
+            font=self.font_body
         )
-        self.load_source_button.pack(padx=20, pady=8, fill="x")
+        self.load_source_button.pack(padx=18, pady=6, fill="x")
 
         self.load_target_button = ctk.CTkButton(
             self.sidebar,
-            text="Load Target GIF",
+            text="Load Target Image / GIF",
             command=lambda: self.load_image("target"),
             height=40,
             fg_color="#3BA55D",
-            hover_color="#2D7D46"
+            hover_color="#2D7D46",
+            font=self.font_body
         )
-        self.load_target_button.pack(padx=20, pady=8, fill="x")
+        self.load_target_button.pack(padx=18, pady=6, fill="x")
+
+        self.tool_divider_1 = ctk.CTkFrame(self.sidebar, height=1, fg_color="#2A303B")
+        self.tool_divider_1.pack(padx=18, pady=16, fill="x")
+
+        self.smart_tools_label = ctk.CTkLabel(
+            self.sidebar,
+            text="Smart Tools",
+            font=self.font_section,
+            text_color="#FFFFFF"
+        )
+        self.smart_tools_label.pack(padx=18, pady=(0, 8), anchor="w")
 
         self.auto_match_button = ctk.CTkButton(
             self.sidebar,
@@ -108,9 +155,10 @@ class PaletteForgeWindow(ctk.CTk):
             height=40,
             fg_color="#F0B232",
             hover_color="#C98F1E",
-            text_color="#111214"
+            text_color="#111214",
+            font=("Segoe UI", 12, "bold")
         )
-        self.auto_match_button.pack(padx=20, pady=8, fill="x")
+        self.auto_match_button.pack(padx=18, pady=6, fill="x")
 
         self.live_preview_button = ctk.CTkButton(
             self.sidebar,
@@ -118,29 +166,54 @@ class PaletteForgeWindow(ctk.CTk):
             command=self.render_live_swap_preview,
             height=40,
             fg_color="#EB459E",
-            hover_color="#C63D86"
+            hover_color="#C63D86",
+            font=self.font_body
         )
-        self.live_preview_button.pack(padx=20, pady=8, fill="x")
+        self.live_preview_button.pack(padx=18, pady=6, fill="x")
 
         self.show_original_button = ctk.CTkButton(
             self.sidebar,
             text="Show Original Source",
             command=self.restore_source_preview,
-            height=40,
-            fg_color="#2B2D31",
-            hover_color="#383A40"
+            height=38,
+            fg_color="#252B35",
+            hover_color="#333A46",
+            font=self.font_body
         )
-        self.show_original_button.pack(padx=20, pady=8, fill="x")
+        self.show_original_button.pack(padx=18, pady=6, fill="x")
 
         self.apply_mapping_button = ctk.CTkButton(
             self.sidebar,
             text="Apply Manual Mapping",
             command=self.apply_manual_mapping,
-            height=40,
+            height=38,
             fg_color="#5865F2",
-            hover_color="#4752C4"
+            hover_color="#4752C4",
+            font=self.font_body
         )
-        self.apply_mapping_button.pack(padx=20, pady=8, fill="x")
+        self.apply_mapping_button.pack(padx=18, pady=6, fill="x")
+
+        self.analyze_sprite_button = ctk.CTkButton(
+            self.sidebar,
+            text="🧩 Analyze Sprite",
+            command=self.analyze_sprite_regions,
+            height=38,
+            fg_color="#7289DA",
+            hover_color="#5865F2",
+            font=self.font_body
+        )
+        self.analyze_sprite_button.pack(padx=18, pady=6, fill="x")
+
+        self.tool_divider_2 = ctk.CTkFrame(self.sidebar, height=1, fg_color="#2A303B")
+        self.tool_divider_2.pack(padx=18, pady=16, fill="x")
+
+        self.export_tools_label = ctk.CTkLabel(
+            self.sidebar,
+            text="Export",
+            font=self.font_section,
+            text_color="#FFFFFF"
+        )
+        self.export_tools_label.pack(padx=18, pady=(0, 8), anchor="w")
 
         self.export_gif_button = ctk.CTkButton(
             self.sidebar,
@@ -149,186 +222,241 @@ class PaletteForgeWindow(ctk.CTk):
             height=40,
             fg_color="#57F287",
             hover_color="#3BA55D",
-            text_color="#111214"
+            text_color="#111214",
+            font=("Segoe UI", 12, "bold")
         )
-        self.export_gif_button.pack(padx=20, pady=8, fill="x")
+        self.export_gif_button.pack(padx=18, pady=6, fill="x")
 
-        self.analyze_sprite_button = ctk.CTkButton(
+        self.resize_placeholder = ctk.CTkButton(
             self.sidebar,
-            text="🧩 Analyze Sprite",
-            command=self.analyze_sprite_regions,
-            height=40,
-            fg_color="#7289DA",
-            hover_color="#5865F2"
+            text="↔ Resizer Coming Next",
+            command=lambda: self.set_status("Image + GIF Resizer is PF-003, next after Smart Match pass."),
+            height=38,
+            fg_color="#252B35",
+            hover_color="#333A46",
+            text_color="#9AA3B2",
+            font=self.font_body
         )
-        self.analyze_sprite_button.pack(padx=20, pady=8, fill="x")
-
-        self.status_label = ctk.CTkLabel(
-            self.sidebar,
-            text="Status:\nReady",
-            font=("Arial", 12),
-            text_color="#B5BAC1",
-            wraplength=180,
-            justify="left"
-        )
-        self.status_label.pack(padx=20, pady=(18, 8), anchor="w")
+        self.resize_placeholder.pack(padx=18, pady=6, fill="x")
 
         self.clear_button = ctk.CTkButton(
             self.sidebar,
-            text="Clear All",
+            text="Clear Workspace",
             command=self.clear_all,
-            height=40,
-            fg_color="#2B2D31",
-            hover_color="#383A40"
+            height=38,
+            fg_color="#252B35",
+            hover_color="#333A46",
+            font=self.font_body
         )
-        self.clear_button.pack(padx=20, pady=8, fill="x")
+        self.clear_button.pack(padx=18, pady=(16, 6), fill="x")
 
-        # Center preview area
-        self.preview_frame = ctk.CTkFrame(self, fg_color="#15161A", corner_radius=0)
-        self.preview_frame.grid(row=0, column=1, sticky="nsew", padx=1)
+        self.status_card = ctk.CTkFrame(self.sidebar, fg_color="#10131A", corner_radius=12)
+        self.status_card.pack(padx=18, pady=(18, 14), fill="x", side="bottom")
+        self.status_label = ctk.CTkLabel(
+            self.status_card,
+            text="Status:\nReady",
+            font=self.font_body,
+            text_color="#C7D0DD",
+            wraplength=200,
+            justify="left"
+        )
+        self.status_label.pack(padx=14, pady=12, anchor="w")
+
+        # Center canvas + bottom mapping workspace
+        self.center_area = ctk.CTkFrame(self.workspace, fg_color="#0B0D10", corner_radius=0)
+        self.center_area.grid(row=0, column=1, sticky="nsew")
+        self.center_area.grid_columnconfigure(0, weight=1)
+        self.center_area.grid_rowconfigure(0, weight=1)
+        self.center_area.grid_rowconfigure(1, weight=0)
+
+        self.preview_frame = ctk.CTkFrame(self.center_area, fg_color="#0B0D10", corner_radius=0)
+        self.preview_frame.grid(row=0, column=0, sticky="nsew", padx=16, pady=(16, 8))
         self.preview_frame.grid_columnconfigure(0, weight=1)
         self.preview_frame.grid_columnconfigure(1, weight=1)
         self.preview_frame.grid_rowconfigure(0, weight=1)
 
-        self.source_panel = ctk.CTkFrame(self.preview_frame, fg_color="#15161A", corner_radius=0)
-        self.source_panel.grid(row=0, column=0, sticky="nsew", padx=(20, 10), pady=20)
+        self.source_panel = ctk.CTkFrame(self.preview_frame, fg_color="#151922", corner_radius=16)
+        self.source_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=0)
         self.source_panel.grid_columnconfigure(0, weight=1)
         self.source_panel.grid_rowconfigure(1, weight=1)
 
         self.source_title = ctk.CTkLabel(
             self.source_panel,
             text="SOURCE",
-            font=("Arial", 16, "bold"),
+            font=("Segoe UI", 16, "bold"),
             text_color="#FFFFFF"
         )
-        self.source_title.grid(row=0, column=0, pady=(0, 10))
+        self.source_title.grid(row=0, column=0, padx=16, pady=(14, 4), sticky="w")
+
+        self.source_canvas = ctk.CTkFrame(self.source_panel, fg_color="#0F1218", corner_radius=14)
+        self.source_canvas.grid(row=1, column=0, sticky="nsew", padx=14, pady=(6, 14))
+        self.source_canvas.grid_columnconfigure(0, weight=1)
+        self.source_canvas.grid_rowconfigure(0, weight=1)
 
         self.source_preview_label = ctk.CTkLabel(
-            self.source_panel,
-            text="\nLoad source GIF",
-            font=("Arial", 20, "bold"),
-            text_color="#B5BAC1"
+            self.source_canvas,
+            text="Drop or load source image / GIF",
+            font=("Segoe UI", 18, "bold"),
+            text_color="#7D8795"
         )
-        self.source_preview_label.grid(row=1, column=0)
+        self.source_preview_label.grid(row=0, column=0, padx=20, pady=20)
 
-        self.target_panel = ctk.CTkFrame(self.preview_frame, fg_color="#15161A", corner_radius=0)
-        self.target_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 20), pady=20)
+        self.target_panel = ctk.CTkFrame(self.preview_frame, fg_color="#151922", corner_radius=16)
+        self.target_panel.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=0)
         self.target_panel.grid_columnconfigure(0, weight=1)
         self.target_panel.grid_rowconfigure(1, weight=1)
 
         self.target_title = ctk.CTkLabel(
             self.target_panel,
             text="TARGET",
-            font=("Arial", 16, "bold"),
+            font=("Segoe UI", 16, "bold"),
             text_color="#FFFFFF"
         )
-        self.target_title.grid(row=0, column=0, pady=(0, 10))
+        self.target_title.grid(row=0, column=0, padx=16, pady=(14, 4), sticky="w")
+
+        self.target_canvas = ctk.CTkFrame(self.target_panel, fg_color="#0F1218", corner_radius=14)
+        self.target_canvas.grid(row=1, column=0, sticky="nsew", padx=14, pady=(6, 14))
+        self.target_canvas.grid_columnconfigure(0, weight=1)
+        self.target_canvas.grid_rowconfigure(0, weight=1)
 
         self.target_preview_label = ctk.CTkLabel(
-            self.target_panel,
-            text="\nLoad target GIF",
-            font=("Arial", 20, "bold"),
-            text_color="#B5BAC1"
+            self.target_canvas,
+            text="Drop or load target image / GIF",
+            font=("Segoe UI", 18, "bold"),
+            text_color="#7D8795"
         )
-        self.target_preview_label.grid(row=1, column=0)
+        self.target_preview_label.grid(row=0, column=0, padx=20, pady=20)
+
+        # Bottom mapping dock
+        self.mapping_dock = ctk.CTkFrame(self.center_area, height=235, fg_color="#151922", corner_radius=16)
+        self.mapping_dock.grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 16))
+        self.mapping_dock.grid_propagate(False)
+        self.mapping_dock.grid_columnconfigure(0, weight=1)
+        self.mapping_dock.grid_rowconfigure(1, weight=1)
+
+        self.mapping_header = ctk.CTkFrame(self.mapping_dock, fg_color="transparent")
+        self.mapping_header.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 4))
+        self.mapping_header.grid_columnconfigure(0, weight=1)
+
+        self.mapping_title = ctk.CTkLabel(
+            self.mapping_header,
+            text="Palette Mapping Editor",
+            font=self.font_section,
+            text_color="#FFFFFF"
+        )
+        self.mapping_title.grid(row=0, column=0, sticky="w")
+
+        self.mapping_count_label = ctk.CTkLabel(
+            self.mapping_header,
+            text="0 matches",
+            font=self.font_body,
+            text_color="#9AA3B2"
+        )
+        self.mapping_count_label.grid(row=0, column=1, sticky="e")
+
+        self.mapping_scroll = ctk.CTkScrollableFrame(
+            self.mapping_dock,
+            fg_color="#0F1218",
+            corner_radius=12
+        )
+        self.mapping_scroll.grid(row=1, column=0, sticky="nsew", padx=14, pady=(4, 14))
 
         # Right inspector panel
-        self.inspector = ctk.CTkFrame(self, width=320, fg_color="#1E1F22", corner_radius=0)
+        self.inspector = ctk.CTkFrame(self.workspace, width=345, fg_color="#151922", corner_radius=0)
         self.inspector.grid(row=0, column=2, sticky="nsew")
         self.inspector.grid_propagate(False)
 
         self.inspector_title = ctk.CTkLabel(
             self.inspector,
-            text="Palette Explorer",
-            font=("Arial", 20, "bold"),
+            text="Inspector",
+            font=("Segoe UI", 20, "bold"),
             text_color="#FFFFFF"
         )
-        self.inspector_title.pack(pady=(20, 10))
+        self.inspector_title.pack(padx=20, pady=(22, 4), anchor="w")
+
+        self.inspector_subtitle = ctk.CTkLabel(
+            self.inspector,
+            text="Sprite stats, palettes, and analysis",
+            font=self.font_body,
+            text_color="#9AA3B2"
+        )
+        self.inspector_subtitle.pack(padx=20, pady=(0, 12), anchor="w")
+
+        self.file_info_card = ctk.CTkFrame(self.inspector, fg_color="#0F1218", corner_radius=12)
+        self.file_info_card.pack(padx=18, pady=(0, 14), fill="x")
 
         self.file_info_label = ctk.CTkLabel(
-            self.inspector,
-            text="Load a source and target GIF to begin.",
-            font=("Arial", 12),
-            text_color="#B5BAC1",
-            wraplength=270,
+            self.file_info_card,
+            text="Load a source and target image/GIF to begin.",
+            font=self.font_body,
+            text_color="#C7D0DD",
+            wraplength=285,
             justify="left"
         )
-        self.file_info_label.pack(padx=20, pady=(0, 12), anchor="w")
+        self.file_info_label.pack(padx=14, pady=12, anchor="w")
 
         self.source_palette_title = ctk.CTkLabel(
             self.inspector,
             text="Source Palette",
-            font=("Arial", 15, "bold"),
+            font=self.font_section,
             text_color="#FFFFFF"
         )
-        self.source_palette_title.pack(padx=20, pady=(4, 2), anchor="w")
+        self.source_palette_title.pack(padx=20, pady=(2, 0), anchor="w")
 
         self.source_palette_count_label = ctk.CTkLabel(
             self.inspector,
             text="0 colors",
-            font=("Arial", 12),
-            text_color="#B5BAC1"
+            font=self.font_body,
+            text_color="#9AA3B2"
         )
-        self.source_palette_count_label.pack(padx=20, pady=(0, 5), anchor="w")
+        self.source_palette_count_label.pack(padx=20, pady=(0, 6), anchor="w")
 
         self.source_palette_scroll = ctk.CTkScrollableFrame(
             self.inspector,
-            width=270,
-            height=125,
-            fg_color="#2B2D31",
-            corner_radius=8
+            width=300,
+            height=155,
+            fg_color="#0F1218",
+            corner_radius=12
         )
-        self.source_palette_scroll.pack(padx=20, pady=(0, 12), fill="x")
+        self.source_palette_scroll.pack(padx=18, pady=(0, 14), fill="x")
 
         self.target_palette_title = ctk.CTkLabel(
             self.inspector,
             text="Target Palette",
-            font=("Arial", 15, "bold"),
+            font=self.font_section,
             text_color="#FFFFFF"
         )
-        self.target_palette_title.pack(padx=20, pady=(4, 2), anchor="w")
+        self.target_palette_title.pack(padx=20, pady=(2, 0), anchor="w")
 
         self.target_palette_count_label = ctk.CTkLabel(
             self.inspector,
             text="0 colors",
-            font=("Arial", 12),
-            text_color="#B5BAC1"
+            font=self.font_body,
+            text_color="#9AA3B2"
         )
-        self.target_palette_count_label.pack(padx=20, pady=(0, 5), anchor="w")
+        self.target_palette_count_label.pack(padx=20, pady=(0, 6), anchor="w")
 
         self.target_palette_scroll = ctk.CTkScrollableFrame(
             self.inspector,
-            width=270,
-            height=125,
-            fg_color="#2B2D31",
-            corner_radius=8
+            width=300,
+            height=155,
+            fg_color="#0F1218",
+            corner_radius=12
         )
-        self.target_palette_scroll.pack(padx=20, pady=(0, 12), fill="x")
+        self.target_palette_scroll.pack(padx=18, pady=(0, 14), fill="x")
 
-        self.mapping_title = ctk.CTkLabel(
-            self.inspector,
-            text="Palette Mapping",
-            font=("Arial", 15, "bold"),
-            text_color="#FFFFFF"
-        )
-        self.mapping_title.pack(padx=20, pady=(4, 2), anchor="w")
+        self.next_up_card = ctk.CTkFrame(self.inspector, fg_color="#10131A", corner_radius=12)
+        self.next_up_card.pack(padx=18, pady=(0, 14), fill="x", side="bottom")
 
-        self.mapping_count_label = ctk.CTkLabel(
-            self.inspector,
-            text="0 matches",
-            font=("Arial", 12),
-            text_color="#B5BAC1"
+        self.next_up_label = ctk.CTkLabel(
+            self.next_up_card,
+            text="Next Milestones\nPF-002 Smart Match Perfection\nPF-003 Image + GIF Resizer",
+            font=self.font_body,
+            text_color="#C7D0DD",
+            wraplength=285,
+            justify="left"
         )
-        self.mapping_count_label.pack(padx=20, pady=(0, 5), anchor="w")
-
-        self.mapping_scroll = ctk.CTkScrollableFrame(
-            self.inspector,
-            width=270,
-            height=140,
-            fg_color="#2B2D31",
-            corner_radius=8
-        )
-        self.mapping_scroll.pack(padx=20, pady=(0, 20), fill="x")
+        self.next_up_label.pack(padx=14, pady=12, anchor="w")
 
     def load_image(self, slot):
         file_path = filedialog.askopenfilename(
@@ -370,7 +498,7 @@ class PaletteForgeWindow(ctk.CTk):
             self.load_animated_preview(image, slot)
         else:
             display_image = image.copy().convert("RGBA")
-            display_image.thumbnail((380, 380), Image.Resampling.NEAREST)
+            display_image.thumbnail((520, 520), Image.Resampling.NEAREST)
 
             preview = ImageTk.PhotoImage(display_image)
 
@@ -389,7 +517,7 @@ class PaletteForgeWindow(ctk.CTk):
             image.seek(frame_index)
 
             frame = image.copy().convert("RGBA")
-            frame.thumbnail((380, 380), Image.Resampling.NEAREST)
+            frame.thumbnail((520, 520), Image.Resampling.NEAREST)
 
             frames.append(ImageTk.PhotoImage(frame))
             durations.append(image.info.get("duration", 100))
@@ -799,7 +927,7 @@ class PaletteForgeWindow(ctk.CTk):
 
         for frame in rendered_frames:
             display_frame = frame.copy().convert("RGBA")
-            display_frame.thumbnail((380, 380), Image.Resampling.NEAREST)
+            display_frame.thumbnail((520, 520), Image.Resampling.NEAREST)
             self.swapped_preview_frames.append(ImageTk.PhotoImage(display_frame))
 
         if not self.swapped_preview_frames:
@@ -844,7 +972,7 @@ class PaletteForgeWindow(ctk.CTk):
             self.source_preview_label.configure(image=self.source_preview_image, text="")
             self.set_status("Original source restored")
         else:
-            self.source_preview_label.configure(image=None, text="\nLoad source GIF")
+            self.source_preview_label.configure(image=None, text="\nLoad source image/GIF")
             self.set_status("Ready")
 
     def clear_mapping_display(self, clear_data=True):
@@ -887,7 +1015,7 @@ class PaletteForgeWindow(ctk.CTk):
             self.swapped_preview_frames = []
             self.swapped_preview_durations = []
             self.swapped_preview_index = 0
-            self.source_preview_label.configure(image=None, text="\nLoad source GIF")
+            self.source_preview_label.configure(image=None, text="\nLoad source image/GIF")
             self.clear_palette_display("source")
         else:
             self.stop_target_animation()
@@ -897,14 +1025,14 @@ class PaletteForgeWindow(ctk.CTk):
             self.target_durations = []
             self.target_frame_index = 0
             self.target_palette_colors = []
-            self.target_preview_label.configure(image=None, text="\nLoad target GIF")
+            self.target_preview_label.configure(image=None, text="\nLoad target image/GIF")
             self.clear_palette_display("target")
 
     def clear_all(self):
         self.clear_slot("source")
         self.clear_slot("target")
         self.clear_mapping_display()
-        self.file_info_label.configure(text="Load a source and target GIF to begin.")
+        self.file_info_label.configure(text="Load a source and target image/GIF to begin.")
         self.set_status("Ready")
 
     def update_file_info(self):

@@ -1,41 +1,41 @@
-# PaletteForge
+# PaletteForge v0.3.0 — Professional Workspace UI
 
-PaletteForge is a Pokémon sprite and GIF palette editor built with Python and CustomTkinter.
+## Patch type
+Professional interface foundation.
 
-The goal is to create a clean desktop tool for palette detection, palette matching, live sprite recoloring, GIF preview, and GIF export.
+## Files included
+- `ui/window.py`
+- `docs/PRODUCT_ROADMAP.md`
+- `docs/FEATURE_BACKLOG.md`
+- `docs/CHANGELOG.md`
 
-## Current Version
+## What changed
+- Reworked the app into a more professional studio-style interface.
+- Added a top product bar and priority stack label.
+- Added a cleaner left action rail.
+- Expanded the center preview/canvas workspace.
+- Moved Palette Mapping into a bottom dock so manual mapping has more room.
+- Rebuilt the right inspector panel for sprite stats, palettes, and analysis.
+- Preserved all existing v0.2.9 functionality.
+- Added a placeholder for the upcoming Image + GIF Resizer.
 
-**v0.1.4 - Auto Match Engine**
+## Replace instructions
+Copy the included folders into your PaletteForge project root and replace existing files when prompted.
 
-## Current Features
+## Test checklist
+1. Run `python main.py`
+2. Load a source image/GIF.
+3. Load a target image/GIF.
+4. Click `Analyze Sprite`.
+5. Click `Smart Match`.
+6. Click `Live Swap Preview`.
+7. Adjust one manual mapping dropdown.
+8. Click `Apply Manual Mapping`.
+9. Export GIF.
 
-- Modern Discord-style UI
-- Animated GIF playback
-- Source and Target GIF previews
-- Palette extraction
-- Palette Explorer
-- Dual palette detection
-- Auto Match Engine foundation
-- Git/GitHub project tracking
-
-## Roadmap
-
-- v0.1.5 - Live Swap Preview
-- v0.1.6 - Manual Palette Editor
-- v0.2.0 - GIF Export
-- v0.3.0 - Drag and Drop
-- v0.4.0 - Presets and Palette Library
-- v1.0.0 - Public release
-
-## Run the App
-
+## Commit message
 ```bash
-python main.py
+git add .
+git commit -m "feat: add professional workspace ui"
+git push
 ```
-
-## Tech Stack
-
-- Python
-- CustomTkinter
-- Pillow
